@@ -1,0 +1,17 @@
+# LLM via OpenRouter (API compativel com OpenAI)
+openai>=1.40
+
+# Dados oficiais da NBA
+nba_api>=1.4
+
+# Interface
+streamlit>=1.36
+
+# Calculo de similaridade e manipulacao de dados
+numpy>=1.24
+pandas>=2.0
+
+# Configuracao e rede
+python-dotenv>=1.0
+requests>=2.31
+certifi>=2024.2.2

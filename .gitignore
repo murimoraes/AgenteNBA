@@ -216,3 +216,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Especificos do Agente NBA
+# ---------------------------------------------------------------------------
+# Segredos: o .env ja aparece acima; aqui vao os demais
+.streamlit/secrets.toml
+*.pem
+
+# Cache de dados da NBA -- regeravel e os pickles ficam grandes
+*.pkl
+.cache/
+
+# Ferramentas locais
+.claude/
+.vscode/
+.idea/
+desktop.ini

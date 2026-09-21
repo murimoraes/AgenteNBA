@@ -1,0 +1,17 @@
+# Tema fixo para a paleta editorial do app nao brigar com o tema do sistema.
+# Duas cores de acento (laranja de quadra + verde-petroleo) sobre neutros quentes.
+
+[theme]
+base = "light"
+primaryColor = "#BF4417"
+backgroundColor = "#FBFAF8"
+secondaryBackgroundColor = "#F2EFEA"
+textColor = "#14131A"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[server]
+headless = true
