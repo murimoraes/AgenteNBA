@@ -18,6 +18,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+import archetypes as archetype_catalog
 from validation import facts
 
 
@@ -46,6 +47,22 @@ _CLARIFICATION_RE = re.compile(
 def asks_for_clarification(text: str) -> bool:
     """A resposta pede o dado que faltava em vez de adivinhar."""
     return bool(_CLARIFICATION_RE.search(normalize(text)))
+
+
+def archetypes_mentioned(text: str) -> list[str]:
+    """
+    Rotulos de arquetipo que a resposta realmente usou.
+
+    Entregar o arquetipo no payload nao serve de nada se o modelo continuar
+    narrando apenas z-scores. Esta e a metrica que mede a adocao: o dado novo
+    chegou ate o texto que o usuario le?
+    """
+    alvo = normalize(text)
+    return [
+        arch.label
+        for arch in archetype_catalog.ARCHETYPES
+        if normalize(arch.label) in alvo
+    ]
 
 
 @dataclass
@@ -169,6 +186,12 @@ def evaluate_case(case: dict, turn: Any) -> CaseResult:
     if expects.get("asks_clarification") and not asks_for_clarification(answer):
         failures.append("resposta nao pede o esclarecimento que faltava (pergunta ambigua)")
 
+    usados = archetypes_mentioned(answer)
+    if expects.get("uses_archetype") and not usados:
+        failures.append(
+            "resposta nao usa nenhum rotulo de arquetipo, apesar de a tool te-los devolvido"
+        )
+
     # Campos que precisam existir no payload da tool -- verifica o encanamento,
     # nao o texto: se o agente parar de receber o bloco, o eval acusa.
     for campo in expects.get("tool_result_has") or []:
@@ -187,6 +210,7 @@ def evaluate_case(case: dict, turn: Any) -> CaseResult:
         failures.append("resposta vazia")
 
     telemetria = turn.metrics() if hasattr(turn, "metrics") else {}
+    telemetria["archetypes_used"] = usados
 
     return CaseResult(
         case_id=case["id"],
@@ -223,6 +247,11 @@ def aggregate(results: list[CaseResult]) -> dict:
     claims = sum(m.get("numeric_claims", 0) for m in metrics)
     sem_lastro = sum(m.get("unverified_claims", 0) for m in metrics)
 
+    com_arquetipo = sum(1 for m in metrics if m.get("archetypes_used"))
+    rotulos_usados = {
+        rotulo for m in metrics for rotulo in (m.get("archetypes_used") or [])
+    }
+
     com_alucinacao = sum(1 for m in metrics if m.get("unverified_claims", 0) > 0)
     fora_contrato = sum(1 for m in metrics if m.get("out_of_contract"))
     corrigidos = sum(1 for m in metrics if m.get("corrections", 0) > 0)
@@ -245,6 +274,9 @@ def aggregate(results: list[CaseResult]) -> dict:
         "numeric_accuracy": (claims - sem_lastro) / claims if claims else 1.0,
         "hallucination_rate_by_answer": com_alucinacao / len(results),
         "out_of_contract_answers": fora_contrato,
+        # arquetipos (adocao pelo modelo, nao so presenca no payload)
+        "answers_with_archetype": com_arquetipo,
+        "distinct_archetypes_used": len(rotulos_usados),
         # pipeline
         "answers_corrected": corrigidos,
         "contract_violations": violacoes,
@@ -285,6 +317,8 @@ def format_report(summary: dict, results: list[CaseResult], model: str = "") -> 
         f"{summary['numeric_claims']} numeros com lastro)",
         f"- Respostas com alucinacao numerica: {summary['hallucination_rate_by_answer']:.0%}",
         f"- Respostas fora do contrato de dados: {summary['out_of_contract_answers']}",
+        f"- Respostas que usam arquetipo: {summary['answers_with_archetype']}/"
+        f"{summary['cases']} ({summary['distinct_archetypes_used']} rotulos distintos)",
         f"- Respostas reescritas pelo fact checker: {summary['answers_corrected']}",
         f"- Violacoes de contrato nas tools: {summary['contract_violations']}",
         f"- Erros do agente: {summary['agent_errors']}",

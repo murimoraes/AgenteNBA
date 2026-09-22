@@ -75,11 +75,16 @@ def group_results(turn: agent.AgentTurn) -> dict:
         rec.result for rec in turn.tool_calls
         if rec.name == "get_recent_games" and not rec.result.get("error")
     ]
+    perfis = [
+        rec.result for rec in turn.tool_calls
+        if rec.name == "get_player_archetypes" and not rec.result.get("error")
+    ]
     errors = [
         (rec.name, rec.result) for rec in turn.tool_calls
         if isinstance(rec.result, dict) and rec.result.get("error")
     ]
-    return {"players": by_player, "comparisons": comparisons, "logs": logs, "errors": errors}
+    return {"players": by_player, "comparisons": comparisons, "logs": logs,
+            "profiles": perfis, "errors": errors}
 
 
 def render_turn(question: str, turn: agent.AgentTurn) -> None:
@@ -106,6 +111,15 @@ def render_turn(question: str, turn: agent.AgentTurn) -> None:
         block = ui.similar_panel(comp) if comp.get("mode") == "similar" else ui.pair_panel(comp)
         if block:
             st.markdown(block, unsafe_allow_html=True)
+        if comp.get("mode") != "similar":
+            arch = ui.archetype_panel(comp)
+            if arch:
+                st.markdown(arch, unsafe_allow_html=True)
+
+    for perfil in grouped["profiles"]:
+        bloco = ui.archetype_solo_panel(perfil)
+        if bloco:
+            st.markdown(bloco, unsafe_allow_html=True)
 
     for log in grouped["logs"]:
         st.markdown(ui.games_table(log), unsafe_allow_html=True)

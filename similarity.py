@@ -29,6 +29,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
+import archetypes
 import nba_data
 
 # Filtro de elegibilidade para a populacao de referencia e para aparecer como
@@ -133,6 +134,30 @@ class ComparisonResult:
     tiers_used: set[str]
     per_feature: list[dict] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    archetypes_a: dict = field(default_factory=dict)
+    archetypes_b: dict = field(default_factory=dict)
+    archetype_comparison: dict = field(default_factory=dict)
+
+
+def profile_of(style: PlayerStyle) -> dict:
+    """
+    Arquetipos do jogador, com os rotulos legiveis das features na evidencia.
+
+    O `archetypes.py` trabalha so com chaves, para nao depender deste modulo; a
+    traducao para "% arremessos no garrafao restrito" acontece aqui, onde o
+    catalogo de features vive.
+    """
+    perfil = archetypes.classify(style.z)
+    for categoria in perfil["categories"].values():
+        for papel in ("primary", "secondary"):
+            entrada = categoria.get(papel)
+            if not entrada:
+                continue
+            for item in entrada.get("evidence", []):
+                feature = BY_KEY.get(item["feature"])
+                if feature:
+                    item["label"] = feature.label
+    return perfil
 
 
 # ---------------------------------------------------------------------------
@@ -447,11 +472,18 @@ def compare(player_a_id: int, season_a: str,
         if p.small_sample:
             notes.append(f"{p.name} tem apenas {p.games} jogos em {p.season}: amostra pequena.")
 
+    perfil_a = profile_of(a)
+    perfil_b = profile_of(b)
+
     return ComparisonResult(
         a=a, b=b, cosine=round(cos, 4), distance=round(dist, 4),
         resemblance=_resemblance(dist, keys, season_a, season_b), percentile=percentil,
         features_used=keys, tiers_used=tiers,
         per_feature=per_feature, notes=notes,
+        archetypes_a=perfil_a, archetypes_b=perfil_b,
+        archetype_comparison=archetypes.compare_profiles(
+            perfil_a, perfil_b, a.name, b.name
+        ),
     )
 
 
@@ -503,6 +535,21 @@ def most_similar(player_id: int, season: str, n: int = 5,
     resultados.sort(key=lambda r: (-r["resemblance"], r["distance"]))
     top = resultados[:max(1, n)]
 
+    # Arquetipo de cada semelhante: sem isso a lista e so uma sequencia de
+    # nomes com um numero ao lado, e o usuario nao sabe o que os aproxima.
+    # So para o top N -- classificar a liga inteira seria desperdicio.
+    perfil_alvo = profile_of(alvo)
+    for item in top:
+        estilo = get_space(item["season"]).style_of(item["player_id"])
+        if estilo is None:
+            continue
+        perfil = profile_of(estilo)
+        item["archetype_summary"] = perfil["summary"]
+        item["shared_archetypes"] = [
+            comum["archetype"]
+            for comum in archetypes.compare_profiles(perfil_alvo, perfil)["shared"]
+        ]
+
     # Isolamento: se ate o vizinho mais proximo esta longe, o jogador nao tem
     # analogo -- dizer isso e mais honesto do que entregar um nome qualquer.
     isolado = bool(top) and top[0]["resemblance"] < 55.0
@@ -512,6 +559,7 @@ def most_similar(player_id: int, season: str, n: int = 5,
         "player_id": alvo.player_id,
         "season": season,
         "features_used": len(alvo.z),
+        "archetypes": perfil_alvo,
         "most_similar": top,
         "isolated": isolado,
         "pool_size": len(space.pop_frame),

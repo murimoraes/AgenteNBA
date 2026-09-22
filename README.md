@@ -35,6 +35,7 @@ ui.py           CSS e componentes HTML (design system do app)
 agent.py        Loop de tool use contra o OpenRouter (formato OpenAI)
 tools.py        As 5 tools + schemas no formato {"type":"function",...}
 similarity.py   Vetor de estilo e similaridade (numpy puro, sem LLM)
+archetypes.py   44 arquetipos de scouting derivados dos z-scores por regra
 nba_data.py     Acesso ao nba_api e ao CDN de imagens, com cache
 config.py       Credenciais, modelo, temporada e tabela de preços, via .env
 certs.py        Compatibilidade TLS com antivírus/proxy que inspecionam HTTPS
@@ -181,9 +182,34 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" https://openrouter.ai/api/v1
 |---|---|
 | `get_player_season_stats` | Médias e totais de uma temporada, com TS% |
 | `get_recent_games` | Box scores recentes + médias do recorte |
-| `compare_players` | Similaridade de estilo (par ou ranking de semelhantes) |
+| `compare_players` | Similaridade de estilo + arquétipos (par ou ranking de semelhantes) |
+| `get_player_archetypes` | Arquétipos de scouting de um jogador, sem comparação |
 | `get_player_bio` | Posição, físico, time, draft, origem |
 | `get_player_image` | Headshot oficial padronizado em 1040×760 |
+
+### Arquétipos de scouting
+
+O score de similaridade diz **quanto** dois jogadores se parecem. Os arquétipos
+dizem **em quê**. São **44 rótulos em 7 categorias** (perfil de arremesso,
+criação, organização, defesa, rebote, papel na equipe, físico), derivados por
+regra determinística dos mesmos z-scores — nenhum dado novo, nenhuma chamada ao
+modelo.
+
+Cada jogador recebe um arquétipo **primário** por categoria e um **secundário**
+quando o segundo colocado está perto. Três salvaguardas evitam rótulo vazio:
+
+- **piso de confiança** — abaixo do limiar a resposta é "perfil equilibrado",
+  não o menos ruim;
+- **secundário só quando está perto** — forçar um segundo rótulo sempre
+  transformaria ruído em afirmação;
+- **corte por era** — "Criador Pull-Up" sem a feature de pull-up (pré-2013-14)
+  não é classificação fraca, é classificação sem sentido: o arquétipo sai da
+  disputa em vez de pontuar com meio vetor.
+
+Verificado em 2024-25: Jokić e Gobert coincidem **só** no físico (Estrutura de
+Pivô Clássico); Curry e Trae Young coincidem em criação, organização, papel e
+físico, e divergem só no perfil de arremesso — Arremessador de Elite contra
+Mestre do Lance-Livre.
 
 ### Similaridade de estilo
 

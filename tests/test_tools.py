@@ -164,6 +164,54 @@ def test_num_games_e_limitado(monkeypatch):
     assert capturado["chamou"]
 
 
+def test_tool_de_arquetipo_existe_e_esta_registrada():
+    """
+    Lacuna encontrada na avaliacao: perguntado "que tipo de jogador e o Gobert?",
+    o agente nao tinha como chegar ao arquetipo sem inventar uma comparacao.
+    """
+    assert "get_player_archetypes" in tools.TOOL_FUNCTIONS
+    schema = next(
+        s for s in tools.TOOL_SCHEMAS
+        if s["function"]["name"] == "get_player_archetypes"
+    )
+    # A descricao precisa cobrir as formas naturais da pergunta, senao o modelo
+    # nao associa a tool ao pedido.
+    descricao = schema["function"]["description"].lower()
+    for gatilho in ("que tipo de jogador", "estilo", "arquetipo"):
+        assert gatilho in descricao
+
+
+def test_arquetipo_de_jogador_sem_temporada_utilizavel(monkeypatch):
+    import similarity
+
+    monkeypatch.setattr(nba_data, "resolve_player", lambda n: {
+        "id": 1, "full_name": "Fulano de Tal", "is_active": False})
+    monkeypatch.setattr(similarity, "season_for_player",
+                        lambda pid, s: (None, "sem temporadas cobertas pela API"))
+
+    resultado = tools.get_player_archetypes("Fulano de Tal")
+    assert resultado["error"] == "no_season_data"
+    assert "message" in resultado
+
+
+def test_arquetipo_de_jogador_fora_da_populacao(monkeypatch):
+    """Jogador com poucos minutos nao entra na base de estilo -- e isso e dito."""
+    import similarity
+
+    class EspacoVazio:
+        def style_of(self, pid):
+            return None
+
+    monkeypatch.setattr(nba_data, "resolve_player", lambda n: {
+        "id": 1, "full_name": "Fulano de Tal", "is_active": True})
+    monkeypatch.setattr(similarity, "season_for_player", lambda pid, s: ("2024-25", None))
+    monkeypatch.setattr(similarity, "get_space", lambda s: EspacoVazio())
+
+    resultado = tools.get_player_archetypes("Fulano de Tal")
+    assert resultado["error"] == "not_in_population"
+    assert "2024-25" in resultado["message"]
+
+
 def test_bio_declara_o_que_nao_fornece(monkeypatch):
     """O modelo precisa ver, no proprio payload, que salario nao existe aqui."""
     info = pd.DataFrame([{

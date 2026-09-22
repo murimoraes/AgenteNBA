@@ -356,6 +356,16 @@ def compare_players(
                   "season": result.b.season, "team": result.b.team,
                   "games": result.b.games, "minutes_per_game": result.b.minutes},
         },
+        # Arquetipos: a leitura de scouting por tras do numero. O score diz o
+        # QUANTO se parecem; isto diz EM QUE se parecem e onde divergem.
+        "archetypes": {
+            "a": result.archetypes_a.get("summary"),
+            "b": result.archetypes_b.get("summary"),
+            "a_detail": result.archetypes_a.get("categories"),
+            "b_detail": result.archetypes_b.get("categories"),
+            "comparison": result.archetype_comparison,
+            "method": result.archetypes_a.get("method"),
+        },
         "biggest_differences": result.per_feature[:6],
         "closest_features": list(reversed(result.per_feature))[:5],
         "all_features": result.per_feature,
@@ -369,7 +379,67 @@ def compare_players(
 
 
 # ---------------------------------------------------------------------------
-# 4. Bio
+# 4. Arquetipos
+# ---------------------------------------------------------------------------
+def get_player_archetypes(player_name: str, season: str | None = None) -> dict[str, Any]:
+    """
+    Arquetipos de scouting de UM jogador, sem precisar de comparacao.
+
+    Existe porque a avaliacao mostrou a lacuna: perguntado "que tipo de jogador
+    e o Gobert?", o modelo nao chamava compare_players (nao ha com quem
+    comparar) e respondia de memoria. O arquetipo e o mesmo calculo
+    deterministico usado na comparacao, so que exposto sozinho.
+    """
+    player, err = _player_or_error(player_name)
+    if err:
+        return err
+
+    alvo, aviso = similarity.season_for_player(player["id"], season)
+    if alvo is None:
+        return {
+            "error": "no_season_data",
+            "player": player["full_name"],
+            "message": f"{player['full_name']}: {aviso}",
+        }
+
+    estilo = similarity.get_space(alvo).style_of(player["id"])
+    if estilo is None:
+        return {
+            "error": "not_in_population",
+            "player": player["full_name"],
+            "season": alvo,
+            "message": (
+                f"{player['full_name']} nao aparece na base de estilo de {alvo} "
+                f"(minimo de {similarity.MIN_GP} jogos e {similarity.MIN_MPG} min/jogo)."
+            ),
+        }
+
+    perfil = similarity.profile_of(estilo)
+    return _with_meta({
+        "player": estilo.name,
+        "player_id": estilo.player_id,
+        "season": alvo,
+        "team": estilo.team,
+        "games": estilo.games,
+        "minutes_per_game": estilo.minutes,
+        "small_sample": estilo.small_sample,
+        "summary": perfil["summary"],
+        "signature": perfil["signature"],
+        "categories": perfil["categories"],
+        "features_used": len(estilo.z),
+        "method": perfil["method"],
+        "note": (
+            "Arquetipo derivado por regra deterministica sobre os z-scores da "
+            "propria temporada. Use os rotulos como vierem; nao crie rotulos novos."
+        ),
+    },
+        name_match=_name_match(player_name, player),
+        notes=[aviso] if aviso else None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 5. Bio
 # ---------------------------------------------------------------------------
 def get_player_bio(player_name: str) -> dict[str, Any]:
     player, err = _player_or_error(player_name)
@@ -419,7 +489,7 @@ def get_player_bio(player_name: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 5. Imagem oficial
+# 6. Imagem oficial
 # ---------------------------------------------------------------------------
 def get_player_image(player_name: str) -> dict[str, Any]:
     """
@@ -468,6 +538,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., dict]] = {
     "get_player_season_stats": get_player_season_stats,
     "get_recent_games": get_recent_games,
     "compare_players": compare_players,
+    "get_player_archetypes": get_player_archetypes,
     "get_player_bio": get_player_bio,
     "get_player_image": get_player_image,
 }
@@ -532,9 +603,12 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "shoot), papel na ofensiva (usage), organizacao, rebote, defesa e fisico -- "
                 "e NAO por volume de producao: dois jogadores nao sao parecidos so por "
                 "marcarem muitos pontos. mode='pair' mede o quanto dois jogadores se "
-                "parecem; mode='similar' lista os mais proximos. Aceita temporadas "
-                "diferentes para cada jogador (season_a / season_b), util para comparar "
-                "auges de eras distintas. Dados vao de 1996-97 ate hoje."
+                "parecem; mode='similar' lista os mais proximos. O resultado tambem traz "
+                "ARQUETIPOS de scouting (ex.: 'Criador de Pick-and-Roll', 'Protetor de "
+                "Aro') derivados por regra deterministica dos mesmos dados, com primario "
+                "e secundario por categoria, e quais categorias os dois compartilham. "
+                "Aceita temporadas diferentes para cada jogador (season_a / season_b), "
+                "util para comparar auges de eras distintas. Dados vao de 1996-97 ate hoje."
             ),
             "parameters": {
                 "type": "object",
@@ -584,6 +658,31 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["player_a"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_player_archetypes",
+            "description": (
+                "Arquetipos de scouting de UM jogador, sem precisar comparar com "
+                "outro. Devolve o arquetipo primario (e as vezes um secundario) em "
+                "cada categoria: perfil de arremesso, criacao, organizacao, defesa, "
+                "rebote, papel na equipe e fisico -- com rotulos prontos como "
+                "'Protetor de Aro', 'Criador de Pick-and-Roll' ou 'Especialista de "
+                "Funcao (3&D)'. Use SEMPRE que a pergunta for do tipo 'que tipo de "
+                "jogador e X', 'qual o estilo/perfil/arquetipo de X', 'como X joga'. "
+                "Derivado por regra deterministica dos mesmos z-scores da "
+                "similaridade -- nao e opiniao."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "player_name": {"type": "string", "description": "Nome do jogador."},
+                    "season": {"type": "string", "description": _SEASON_DESC},
+                },
+                "required": ["player_name"],
             },
         },
     },

@@ -257,6 +257,32 @@ span[translate="no"] {
   border-top: 1px solid var(--rule); padding-top: var(--space-2); margin-top: var(--space-2);
 }
 
+/* Arquetipos: a leitura de scouting por categoria. */
+.arch-block { margin: var(--space-3) 0 0 0; }
+.arch-line {
+  display: grid; grid-template-columns: 132px 1fr 1fr; gap: var(--space-2);
+  align-items: baseline; padding: var(--space-2) 0;
+  border-top: 1px solid var(--rule); font-size: 13px;
+}
+.arch-line .cat {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.arch-line .val { color: var(--ink); font-weight: 600; }
+.arch-line .val .sec { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+.arch-line.match .val { color: var(--pine); }
+.arch-line.match { background: var(--pine-tint); }
+.arch-reading {
+  font-size: 12px; color: var(--ink-soft); line-height: 1.6;
+  padding: var(--space-2) 0; border-top: 1px solid var(--rule);
+}
+.arch-chip {
+  display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 2px 8px; border-radius: 2px; margin: 0 var(--space-1) var(--space-1) 0;
+  background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink-soft);
+}
+.sim-row .arch-note { font-size: 11px; color: var(--muted); }
+
 /* Selo de verificacao factual: o resultado do fact checker deterministico. */
 .verify {
   display: flex; gap: var(--space-2); align-items: baseline;
@@ -411,12 +437,29 @@ def similar_panel(payload: dict) -> str:
     for r in rows:
         width = max(6.0, 100.0 * (1 - (r["distance"] / worst))) if worst else 6.0
         team = f' <span style="color:var(--muted)">{esc(r["team"])}</span>' if r.get("team") else ""
+        # Sem o arquetipo, a lista e so nome + numero: nao diz o que aproxima os dois.
+        compartilhados = r.get("shared_archetypes") or []
+        nota = (
+            f'<div class="arch-note">Em comum: {esc(", ".join(compartilhados))}</div>'
+            if compartilhados
+            else (f'<div class="arch-note">{esc(r.get("archetype_summary"))}</div>'
+                  if r.get("archetype_summary") else "")
+        )
         body += f"""
 <div class="sim-row">
-  <div class="name">{esc(r["name"])}{team}</div>
+  <div class="name">{esc(r["name"])}{team}{nota}</div>
   <div class="bar-track"><div class="bar-fill" style="width:{width:.1f}%"></div></div>
   <div class="num">{r["resemblance"]:.1f}</div>
 </div>"""
+
+    perfil = payload.get("archetypes") or {}
+    assinatura = ""
+    if perfil.get("summary"):
+        chips = "".join(
+            f'<span class="arch-chip">{esc(item["label"])}</span>'
+            for item in perfil.get("signature") or []
+        )
+        assinatura = f'<div style="margin:var(--space-2) 0">{chips}</div>'
 
     return f"""
 <div class="sim-panel">
@@ -426,8 +469,107 @@ def similar_panel(payload: dict) -> str:
     Semelhanca 0-100 = percentual dos pares da liga mais distantes que esta dupla;
     50 equivale a dois jogadores quaisquer.{aviso}</div>
   </div>
+  {assinatura}
   {body}
   <div class="source-note">{esc(payload.get("method"))}</div>
+</div>
+"""
+
+
+def _archetype_cell(categoria: dict | None) -> str:
+    """Primario + secundario de uma categoria, ou a nota de quando nao ha."""
+    if not categoria:
+        return '<span style="color:var(--muted)">--</span>'
+    primario = categoria.get("primary")
+    if not primario:
+        nota = categoria.get("note") or "--"
+        return f'<span style="color:var(--muted);font-weight:400">{esc(nota)}</span>'
+    secundario = categoria.get("secondary")
+    extra = (
+        f'<span class="sec">tambem: {esc(secundario["label"])}</span>'
+        if secundario else ""
+    )
+    return f'{esc(primario["label"])}{extra}'
+
+
+def archetype_solo_panel(payload: dict) -> str:
+    """Arquetipos de um jogador so, vindos de get_player_archetypes."""
+    categorias = payload.get("categories") or {}
+    if not categorias:
+        return ""
+
+    linhas = ""
+    for dados in categorias.values():
+        linhas += f"""
+<div class="arch-line" style="grid-template-columns:132px 1fr">
+  <div class="cat">{esc(dados.get("label"))}</div>
+  <div class="val">{_archetype_cell(dados)}</div>
+</div>"""
+
+    chips = "".join(
+        f'<span class="arch-chip">{esc(item["label"])}</span>'
+        for item in payload.get("signature") or []
+    )
+    amostra = (
+        '<div class="source-note">Amostra pequena: leia os rotulos com reserva.</div>'
+        if payload.get("small_sample") else ""
+    )
+
+    return f"""
+<div class="sim-panel arch-block">
+  <div class="eyebrow">Arquetipos &middot; {esc(payload.get("player"))} &middot; {esc(payload.get("season"))}</div>
+  <div style="margin:var(--space-2) 0">{chips}</div>
+  {linhas}
+  {amostra}
+  <div class="source-note">{esc(payload.get("method"))}</div>
+</div>
+"""
+
+
+def archetype_panel(payload: dict) -> str:
+    """
+    Tabela de arquetipos lado a lado, categoria por categoria.
+
+    E a traducao que faltava: o score diz o quanto dois jogadores se parecem,
+    esta tabela diz EM QUE se parecem. Categoria em que os dois caem no mesmo
+    arquetipo fica destacada, porque e ali que a comparacao de fato encosta.
+    """
+    bloco = payload.get("archetypes") or {}
+    detalhe_a = bloco.get("a_detail") or {}
+    detalhe_b = bloco.get("b_detail") or {}
+    if not detalhe_a or not detalhe_b:
+        return ""
+
+    comparacao = bloco.get("comparison") or {}
+    iguais = {item["category"] for item in comparacao.get("shared") or []}
+
+    linhas = ""
+    for categoria, dados_a in detalhe_a.items():
+        dados_b = detalhe_b.get(categoria)
+        if not dados_b:
+            continue
+        classe = "arch-line match" if categoria in iguais else "arch-line"
+        linhas += f"""
+<div class="{classe}">
+  <div class="cat">{esc(dados_a.get("label", categoria))}</div>
+  <div class="val">{_archetype_cell(dados_a)}</div>
+  <div class="val">{_archetype_cell(dados_b)}</div>
+</div>"""
+
+    leitura = comparacao.get("reading")
+    rodape = f'<div class="arch-reading">{esc(leitura)}</div>' if leitura else ""
+
+    return f"""
+<div class="sim-panel arch-block">
+  <div class="eyebrow">Arquetipos de scouting</div>
+  <div class="arch-line" style="border-top:none">
+    <div class="cat">Categoria</div>
+    <div class="cat">{esc((payload.get("players", {}).get("a") or {}).get("name"))}</div>
+    <div class="cat">{esc((payload.get("players", {}).get("b") or {}).get("name"))}</div>
+  </div>
+  {linhas}
+  {rodape}
+  <div class="source-note">{esc(bloco.get("method"))}</div>
 </div>
 """
 

@@ -107,7 +107,8 @@
         "tools_any": [
           "compare_players"
         ],
-        "no_hallucination": true
+        "no_hallucination": true,
+        "uses_archetype": true
       }
     },
     {
@@ -123,7 +124,8 @@
           "get_player_season_stats"
         ],
         "season": "2024-25",
-        "no_hallucination": true
+        "no_hallucination": true,
+        "uses_archetype": true
       }
     },
     {
@@ -134,7 +136,8 @@
         "tools_any": [
           "compare_players"
         ],
-        "no_hallucination": true
+        "no_hallucination": true,
+        "uses_archetype": true
       }
     },
     {
@@ -145,7 +148,8 @@
         "tools_any": [
           "compare_players"
         ],
-        "no_hallucination": true
+        "no_hallucination": true,
+        "uses_archetype": true
       }
     },
     {
@@ -211,8 +215,12 @@
         "tools_any": [
           "get_player_bio"
         ],
-        "no_hallucination": true
-      }
+        "no_hallucination": true,
+        "answer_not_contains": [
+          "nao tem dados sobre o ano do draft"
+        ]
+      },
+      "origem": "avaliacao: guardrail de contrato causou recusa indevida"
     },
     {
       "id": "multi_001",
@@ -248,7 +256,8 @@
         "tools_any": [
           "compare_players"
         ],
-        "no_hallucination": true
+        "no_hallucination": true,
+        "uses_archetype": true
       }
     },
     {
@@ -437,6 +446,79 @@
         ],
         "no_hallucination": true,
         "refuse_scope": false
+      }
+    },
+    {
+      "id": "arch_001",
+      "category": "archetypes",
+      "question": "Que tipo de jogador e o Rudy Gobert? Descreva o arquetipo dele em 2024-25",
+      "expects": {
+        "tools_any": [
+          "get_player_archetypes",
+          "compare_players"
+        ],
+        "tool_result_has": [
+          "categories"
+        ],
+        "uses_archetype": true,
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "arch_002",
+      "category": "archetypes",
+      "question": "O Jokic e o Gobert jogam do mesmo jeito? Em que eles se parecem e em que divergem?",
+      "origem": "o pedido que motivou os arquetipos: comparacao especializada, nao vaga",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "tool_result_has": [
+          "archetypes"
+        ],
+        "uses_archetype": true,
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "arch_003",
+      "category": "archetypes",
+      "question": "Qual o arquetipo defensivo do Victor Wembanyama em 2024-25?",
+      "expects": {
+        "tools_any": [
+          "get_player_archetypes",
+          "compare_players"
+        ],
+        "uses_archetype": true,
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "arch_004",
+      "category": "archetypes",
+      "question": "Compare Stephen Curry e Trae Young em 2024-25 pelo estilo de jogo",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "tool_result_has": [
+          "archetypes"
+        ],
+        "uses_archetype": true,
+        "season": "2024-25",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "arch_005",
+      "category": "archetypes",
+      "question": "Quem joga num estilo parecido com o Wembanyama e por que?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "uses_archetype": true,
+        "no_hallucination": true
       }
     }
   ]
