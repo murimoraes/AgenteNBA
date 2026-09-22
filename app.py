@@ -115,6 +115,10 @@ def render_turn(question: str, turn: agent.AgentTurn) -> None:
         # via CSS global (.answer-scope), em vez de abrir/fechar div entre calls.
         st.markdown(f'<div class="answer-scope"></div>\n\n{turn.answer}', unsafe_allow_html=True)
 
+    badge = ui.verification_badge(turn)
+    if badge:
+        st.markdown(badge, unsafe_allow_html=True)
+
     if grouped["errors"]:
         for name, res in grouped["errors"]:
             st.markdown(
@@ -129,12 +133,18 @@ def render_turn(question: str, turn: agent.AgentTurn) -> None:
         with st.expander(f"Dados consultados ({len(turn.tool_calls)} chamadas)"):
             for rec in turn.tool_calls:
                 st.markdown(f"**{rec.name}**  `{json.dumps(rec.arguments, ensure_ascii=False)}`")
+                if rec.issues:
+                    st.caption("Contrato de dados: " + " | ".join(rec.issues))
                 st.json(rec.result, expanded=False)
             if turn.usage:
+                custo = turn.cost_usd
+                custo_txt = f" - US$ {custo:.5f}" if custo else ""
                 st.caption(
                     f"{turn.model} - {turn.usage.get('total_tokens', 0)} tokens "
                     f"({turn.usage.get('prompt_tokens', 0)} entrada / "
-                    f"{turn.usage.get('completion_tokens', 0)} saida)"
+                    f"{turn.usage.get('completion_tokens', 0)} saida) - "
+                    f"{turn.usage.get('calls', 0)} chamadas de API - "
+                    f"{turn.latency_s:.1f}s{custo_txt}"
                 )
 
 
@@ -222,6 +232,18 @@ if question:
         elif kind == "tool_start":
             status.markdown(
                 f'<div class="side-note">Buscando dados: {ui.esc(payload["name"])}...</div>',
+                unsafe_allow_html=True,
+            )
+        elif kind == "verifying":
+            status.markdown(
+                '<div class="side-note">Conferindo os numeros da resposta contra as '
+                "tools...</div>",
+                unsafe_allow_html=True,
+            )
+        elif kind == "correcting":
+            status.markdown(
+                f'<div class="side-note">Verificacao reprovou {len(payload.get("unverified", []))} '
+                f"numero(s); pedindo correcao ao modelo...</div>",
                 unsafe_allow_html=True,
             )
 

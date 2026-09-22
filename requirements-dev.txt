@@ -1,0 +1,14 @@
+# Dependencias de desenvolvimento. Nao sao necessarias para rodar o app.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Em rede com inspecao TLS (antivirus/proxy), o pip falha com
+# CERTIFICATE_VERIFY_FAILED. O bundle que o proprio projeto monta resolve --
+# sem desligar verificacao:
+#
+#   python -c "import certs; print(certs.ensure_tls())"
+#   pip install -r requirements-dev.txt --cert <caminho impresso acima>
+
+-r requirements.txt
+
+pytest>=8.0

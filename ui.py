@@ -256,6 +256,24 @@ span[translate="no"] {
   font-size: 11px; color: var(--muted); letter-spacing: 0.02em;
   border-top: 1px solid var(--rule); padding-top: var(--space-2); margin-top: var(--space-2);
 }
+
+/* Selo de verificacao factual: o resultado do fact checker deterministico. */
+.verify {
+  display: flex; gap: var(--space-2); align-items: baseline;
+  font-size: 12px; line-height: 1.5; border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3); margin: var(--space-3) 0;
+  border: 1px solid var(--rule);
+}
+.verify .tag {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.verify.pass { background: var(--pine-tint); border-color: #CEDDDA; color: var(--pine); }
+.verify.pass .tag { color: var(--pine); }
+.verify.warn { background: var(--clay-tint); border-color: #EBD6C9; color: #6B2A0E; }
+.verify.warn .tag { color: var(--clay); }
+.verify ul { margin: var(--space-1) 0 0 0; padding-left: 18px; }
+.verify code { background: rgba(0,0,0,0.05); padding: 0 3px; border-radius: 2px; }
 </style>
 """
 
@@ -399,6 +417,7 @@ def similar_panel(payload: dict) -> str:
   <div class="bar-track"><div class="bar-fill" style="width:{width:.1f}%"></div></div>
   <div class="num">{r["resemblance"]:.1f}</div>
 </div>"""
+
     return f"""
 <div class="sim-panel">
   <div class="eyebrow">Estilo mais proximo &middot; {esc(payload.get("season"))}</div>
@@ -494,3 +513,58 @@ def user_message(text: str) -> str:
 
 def notice(html_text: str) -> str:
     return f'<div class="notice">{html_text}</div>'
+
+
+def verification_badge(turn) -> str:
+    """
+    Selo do fact checker: quantos numeros da resposta foram conferidos contra as
+    tools e o que sobrou sem lastro.
+
+    Mostrar a pendencia e proposital. A alternativa -- esconder o que nao passou --
+    devolveria o problema ao usuario, que e quem menos tem como checar.
+    """
+    if turn.refused_scope:
+        return (
+            '<div class="verify pass"><span class="tag">Fora de escopo</span>'
+            "<span>Pergunta recusada antes de chamar o modelo: nenhuma chamada de "
+            "API foi feita.</span></div>"
+        )
+
+    report = getattr(turn, "fact_check", None)
+    flags = getattr(turn, "temporal_flags", []) or []
+    if report is None and not flags:
+        return ""
+
+    itens: list[str] = []
+    if report:
+        for claim in report.unverified:
+            itens.append(
+                f"numero <code>{esc(claim.raw)}</code> nao aparece em nenhum "
+                f"resultado de tool &mdash; <i>{esc(claim.context.strip()[:90])}</i>"
+            )
+        for season in report.unverified_seasons:
+            itens.append(f"temporada <code>{esc(season)}</code> nao foi consultada")
+        for flag in report.out_of_contract:
+            itens.append(
+                f"{esc(flag.metric)}: nenhuma tool deste sistema fornece esse dado"
+            )
+    for flag in flags:
+        itens.append(esc(str(flag)))
+
+    resumo = report.summary() if report else "Verificacao temporal aplicada."
+    corrections = getattr(turn, "corrections", 0)
+    if corrections:
+        resumo += f" Resposta reescrita {corrections}x apos reprovacao."
+
+    if not itens:
+        return (
+            f'<div class="verify pass"><span class="tag">Verificado</span>'
+            f"<span>{esc(resumo)}</span></div>"
+        )
+
+    lista = "".join(f"<li>{item}</li>" for item in itens)
+    return (
+        f'<div class="verify warn"><span class="tag">Atencao</span>'
+        f"<span>{esc(resumo)} Os pontos abaixo nao puderam ser confirmados nos dados "
+        f"consultados e nao devem ser tratados como fato:<ul>{lista}</ul></span></div>"
+    )

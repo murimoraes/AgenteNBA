@@ -1,0 +1,443 @@
+{
+  "version": "1.0",
+  "created": "2026-09-21",
+  "notes": "Dataset de avaliacao do agente. Casos marcados com 'origem: relatorio' reproduzem falhas observadas em teste manual real (Relatorio_Testes_AgenteNBA_2026-09-21.md) e existem para impedir regressao. Os campos de 'expects' sao todos opcionais; o que nao for declarado nao e cobrado.",
+  "cases": [
+    {
+      "id": "stats_001",
+      "category": "stats",
+      "question": "Quantos pontos por jogo o Nikola Jokic fez na temporada 2024-25?",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "season": "2024-25",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "stats_002",
+      "category": "stats",
+      "question": "Como foi a temporada 2024-25 do Victor Wembanyama?",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "season": "2024-25",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "stats_003",
+      "category": "stats",
+      "question": "Qual foi o aproveitamento de tres pontos do Stephen Curry em 2023-24?",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "season": "2023-24",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "stats_004",
+      "category": "stats",
+      "question": "Quantas assistencias por jogo o Trae Young deu na ultima temporada dele?",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "stats_005",
+      "category": "stats",
+      "question": "Qual o true shooting do Giannis Antetokounmpo em 2024-25?",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "season": "2024-25",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "recent_001",
+      "category": "recent_form",
+      "question": "Como esta a forma recente do Giannis nos ultimos 7 jogos?",
+      "expects": {
+        "tools_any": [
+          "get_recent_games"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "recent_002",
+      "category": "recent_form",
+      "question": "Me mostra os ultimos 5 jogos do Anthony Edwards",
+      "expects": {
+        "tools_any": [
+          "get_recent_games"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "recent_003",
+      "category": "recent_form",
+      "question": "Como o Wembanyama jogou ontem?",
+      "origem": "relatorio (caso #8): jogo de abril foi narrado como 'ontem' em setembro",
+      "expects": {
+        "tools_any": [
+          "get_recent_games"
+        ],
+        "no_hallucination": true,
+        "answer_not_contains": [
+          "no jogo de ontem"
+        ]
+      }
+    },
+    {
+      "id": "compare_001",
+      "category": "comparison",
+      "question": "Compare o estilo do Anthony Edwards com o do Donovan Mitchell",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "compare_002",
+      "category": "comparison",
+      "question": "Compare Luka Doncic e Shai Gilgeous-Alexander na temporada 2024-25",
+      "origem": "relatorio (caso #2): comparar deve cobrir producao e estilo, nao so estilo",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "tools_all": [
+          "get_player_season_stats"
+        ],
+        "season": "2024-25",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "compare_003",
+      "category": "comparison",
+      "question": "O Jokic se parece com o Sengun?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "similar_001",
+      "category": "similarity",
+      "question": "Quem joga num estilo parecido com o Jokic?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "similar_002",
+      "category": "similarity",
+      "question": "Quais jogadores tem estilo mais proximo do Rudy Gobert?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "similar_003",
+      "category": "similarity",
+      "question": "Existe algum jogador parecido com o Victor Wembanyama na liga?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "crossera_001",
+      "category": "cross_era",
+      "question": "Compare o Michael Jordan de 1995-96 com o Luka Doncic de 2024-25",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "crossera_002",
+      "category": "cross_era",
+      "question": "Com quem o Stephen Curry se pareceria numa era anterior?",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "bio_001",
+      "category": "bio",
+      "question": "Qual a altura e a posicao do Victor Wembanyama?",
+      "expects": {
+        "tools_any": [
+          "get_player_bio"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "bio_002",
+      "category": "bio",
+      "question": "Em que ano o Jokic foi draftado e por qual time?",
+      "expects": {
+        "tools_any": [
+          "get_player_bio"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "multi_001",
+      "category": "multi_tool",
+      "question": "Faca um scouting report completo do Victor Wembanyama em 2024-25: perfil, numeros e com quem ele se parece",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "tools_all": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "multi_002",
+      "category": "multi_tool",
+      "question": "O Anthony Edwards esta melhor nos ultimos jogos do que na media da temporada?",
+      "expects": {
+        "tools_all": [
+          "get_recent_games",
+          "get_player_season_stats"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "multi_003",
+      "category": "multi_tool",
+      "question": "Compare defensivamente o Wembanyama e o Gobert em 2024-25",
+      "expects": {
+        "tools_any": [
+          "compare_players"
+        ],
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "ambiguous_001",
+      "category": "ambiguous",
+      "question": "Quem e o melhor jogador da liga?",
+      "origem": "relatorio (caso #11): respondeu com opiniao e dado errado, sem tool",
+      "expects": {
+        "no_hallucination": true,
+        "answer_not_contains": [
+          "atual MVP"
+        ]
+      }
+    },
+    {
+      "id": "ambiguous_002",
+      "category": "ambiguous",
+      "question": "Como ele esta jogando?",
+      "origem": "relatorio (caso #3): pronome sem antecedente na conversa",
+      "expects": {
+        "no_hallucination": true,
+        "asks_clarification": true,
+        "no_tools": true
+      }
+    },
+    {
+      "id": "ambiguous_003",
+      "category": "ambiguous",
+      "question": "E o outro?",
+      "expects": {
+        "no_hallucination": true,
+        "refuse_scope": false
+      },
+      "origem": "follow-up com pronome: so faz sentido com historico",
+      "history": [
+        {
+          "role": "user",
+          "content": "Compare o Jokic e o Giannis em 2024-25"
+        },
+        {
+          "role": "assistant",
+          "content": "Em 2024-25, Nikola Jokic e Giannis Antetokounmpo tem estilos distintos. Jokic organiza a ofensiva a partir do garrafao."
+        }
+      ]
+    },
+    {
+      "id": "scope_001",
+      "category": "out_of_scope",
+      "question": "Qual a capital da Franca e qual o melhor restaurante de la?",
+      "origem": "relatorio (caso #4): respondida normalmente, sem tool e sem aviso",
+      "expects": {
+        "refuse_scope": true,
+        "no_tools": true
+      }
+    },
+    {
+      "id": "scope_002",
+      "category": "out_of_scope",
+      "question": "Me da uma receita de bolo de cenoura",
+      "expects": {
+        "refuse_scope": true,
+        "no_tools": true
+      }
+    },
+    {
+      "id": "scope_003",
+      "category": "out_of_scope",
+      "question": "Escreve um codigo Python que ordena uma lista",
+      "expects": {
+        "refuse_scope": true,
+        "no_tools": true
+      }
+    },
+    {
+      "id": "scope_004",
+      "category": "out_of_scope",
+      "question": "Quem ganhou a Copa do Mundo de futebol?",
+      "expects": {
+        "refuse_scope": true,
+        "no_tools": true
+      }
+    },
+    {
+      "id": "contract_001",
+      "category": "out_of_contract",
+      "question": "Qual o salario do LeBron James essa temporada?",
+      "origem": "relatorio (caso #9): o modelo inventou 'US$ 44.5 milhoes'",
+      "expects": {
+        "no_hallucination": true,
+        "answer_not_contains": [
+          "milhoes de dolares"
+        ],
+        "acknowledges_missing_data": true
+      }
+    },
+    {
+      "id": "contract_002",
+      "category": "out_of_contract",
+      "question": "Quantos titulos da NBA o Stephen Curry tem?",
+      "expects": {
+        "no_hallucination": true,
+        "acknowledges_missing_data": true
+      }
+    },
+    {
+      "id": "contract_003",
+      "category": "out_of_contract",
+      "question": "O Jokic ganhou o MVP em 2024-25?",
+      "expects": {
+        "no_hallucination": true,
+        "acknowledges_missing_data": true
+      }
+    },
+    {
+      "id": "contract_004",
+      "category": "out_of_contract",
+      "question": "Em que posicao os Lakers terminaram a temporada passada?",
+      "expects": {
+        "no_hallucination": true,
+        "acknowledges_missing_data": true
+      }
+    },
+    {
+      "id": "error_001",
+      "category": "error_handling",
+      "question": "Quais as estatisticas do jogador Zzyxor Quantum?",
+      "origem": "relatorio (caso #7): tratado corretamente, fixado contra regressao",
+      "expects": {
+        "tool_error": "player_not_found",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "error_002",
+      "category": "error_handling",
+      "question": "Estatisticas do Victor Wembanyama na temporada 2030-31",
+      "origem": "relatorio (caso #6): tratado corretamente, fixado contra regressao",
+      "expects": {
+        "tool_error": "season_not_available",
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "error_003",
+      "category": "error_handling",
+      "question": "Estatisticas do jogador Lebron Jams na temporada 2024-25",
+      "origem": "relatorio (caso #5): correcao de nome agora deve ser declarada",
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats"
+        ],
+        "season": "2024-25",
+        "no_hallucination": true,
+        "answer_contains_any": [
+          "lebron james"
+        ]
+      }
+    },
+    {
+      "id": "error_004",
+      "category": "error_handling",
+      "question": "Como foi a temporada 1980-81 do Magic Johnson?",
+      "expects": {
+        "no_hallucination": true
+      }
+    },
+    {
+      "id": "context_001",
+      "category": "conversation_memory",
+      "question": "E quantos rebotes por jogo ele pegou nessa temporada?",
+      "origem": "relatorio (caso #3): resolucao de pronome entre turnos",
+      "history": [
+        {
+          "role": "user",
+          "content": "Como foi a temporada 2024-25 do Victor Wembanyama?"
+        },
+        {
+          "role": "assistant",
+          "content": "Na temporada 2024-25, Victor Wembanyama atuou pelo San Antonio Spurs."
+        }
+      ],
+      "expects": {
+        "tools_any": [
+          "get_player_season_stats",
+          "get_recent_games"
+        ],
+        "no_hallucination": true,
+        "refuse_scope": false
+      }
+    }
+  ]
+}

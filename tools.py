@@ -10,11 +10,13 @@ Erro nunca vira excecao para o modelo -- vira um dict com "error" e, quando da,
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Callable
 
 import config
 import nba_data
 import similarity
+from validation import temporal
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +37,29 @@ def _player_or_error(name: str) -> tuple[dict | None, dict | None]:
     }
 
 
+def _name_match(query: str, player: dict) -> dict | None:
+    """
+    Sinaliza quando o nome pedido nao era exatamente o nome resolvido.
+
+    A resolucao e tolerante a erro de digitacao ("Lebron Jams" -> LeBron James),
+    o que e bom para responder e ruim para a confianca: sem este aviso o usuario
+    nao tem como saber que o sistema trocou o nome por conta propria.
+    """
+    pedido = nba_data._normalize(query)
+    achado = nba_data._normalize(player["full_name"])
+    if pedido == achado:
+        return None
+    return {
+        "query": query,
+        "resolved_to": player["full_name"],
+        "exact": False,
+        "message": (
+            f"O nome pedido foi '{query}'; o jogador resolvido foi "
+            f"{player['full_name']}. Avise o usuario dessa interpretacao na resposta."
+        ),
+    }
+
+
 def _rate(num, den, digits: int = 1):
     try:
         if not den:
@@ -50,6 +75,16 @@ def _num(v, digits: int = 3):
     except (TypeError, ValueError):
         return None
     return round(f, digits)
+
+
+def _with_meta(payload: dict, *, name_match: dict | None = None, **extra) -> dict:
+    """Anexa metadados de contrato ao payload, omitindo o que nao se aplica."""
+    if name_match:
+        payload["name_match"] = name_match
+    for key, value in extra.items():
+        if value is not None:
+            payload[key] = value
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +114,7 @@ def get_player_season_stats(player_name: str, season: str | None = None) -> dict
         return {"error": "no_data", "player": player["full_name"], "season": resolved}
 
     gp = int(row["GP"]) or 0
-    return {
+    return _with_meta({
         "player": player["full_name"],
         "player_id": player["id"],
         "season": resolved,
@@ -119,7 +154,11 @@ def get_player_season_stats(player_name: str, season: str | None = None) -> dict
             "minutes": int(row["MIN"]),
         },
         "note": "Medias calculadas em Python a partir dos totais oficiais da NBA.",
-    }
+    },
+        name_match=_name_match(player_name, player),
+        as_of=date.today().isoformat(),
+        is_current_season=(resolved == config.current_season()),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +207,7 @@ def get_recent_games(
     ]
 
     n = len(recent)
-    return {
+    return _with_meta({
         "player": player["full_name"],
         "player_id": player["id"],
         "season": season,
@@ -188,7 +227,12 @@ def get_recent_games(
             "losses": int((recent["WL"] == "L").sum()),
         },
         "note": "Medias do recorte calculadas em Python sobre os box scores oficiais.",
-    }
+    },
+        name_match=_name_match(player_name, player),
+        # O modelo nao tem relogio: sem este bloco ele le "ultimo jogo do log"
+        # como "jogo recente" e narra um jogo de meses atras como "ontem".
+        data_freshness=temporal.describe_freshness(games[0]["date"] if games else None),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +264,9 @@ def compare_players(
         return err
 
     avisos: list[str] = []
+    match_a = _name_match(player_a, a)
+    if match_a:
+        avisos.append(match_a["message"])
     alvo_a, aviso_a = similarity.season_for_player(a["id"], season_a or season)
     if alvo_a is None:
         return {
@@ -265,6 +312,10 @@ def compare_players(
     b, err_b = _player_or_error(player_b)
     if err_b:
         return err_b
+
+    match_b = _name_match(player_b, b)
+    if match_b:
+        avisos.append(match_b["message"])
 
     alvo_b, aviso_b = similarity.season_for_player(b["id"], season_b or season)
     if alvo_b is None:
@@ -335,7 +386,7 @@ def get_player_bio(player_name: str) -> dict[str, Any]:
         return None if v is None or str(v).strip() in ("", "nan", "None") else str(v)
 
     seasons = nba_data.available_seasons(player["id"])
-    return {
+    return _with_meta({
         "player": player["full_name"],
         "player_id": player["id"],
         "is_active": player["is_active"],
@@ -358,7 +409,13 @@ def get_player_bio(player_name: str) -> dict[str, Any]:
         "to_year": g("TO_YEAR"),
         "seasons_with_data": seasons[-10:],
         "greatest_75": g("GREATEST_75_FLAG"),
-    }
+        "not_provided": (
+            "Este perfil nao inclui salario, contrato, premios individuais, titulos "
+            "nem historico de lesoes -- nenhuma tool deste sistema fornece esses dados."
+        ),
+    },
+        name_match=_name_match(player_name, player),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +438,7 @@ def get_player_image(player_name: str) -> dict[str, Any]:
     width, height = nba_data.HEADSHOT_SIZE
     initials = "".join(part[0] for part in player["full_name"].split()[:2]).upper()
 
-    return {
+    return _with_meta({
         "player": player["full_name"],
         "player_id": player["id"],
         "image_url": url,
@@ -399,7 +456,9 @@ def get_player_image(player_name: str) -> dict[str, Any]:
             if has_photo
             else "Sem foto oficial no CDN da NBA; a interface exibe um monograma."
         ),
-    }
+    },
+        name_match=_name_match(player_name, player),
+    )
 
 
 # ---------------------------------------------------------------------------

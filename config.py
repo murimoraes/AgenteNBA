@@ -167,6 +167,37 @@ def get_client() -> OpenAI:
     return _client_for(get_base_url(), get_api_key(), provider.name)
 
 
+# ---------------------------------------------------------------------------
+# Custo
+# ---------------------------------------------------------------------------
+# US$ por 1 milhao de tokens (entrada, saida). Serve para a metrica de custo por
+# pergunta exigida pelo criterio de conclusao da Fase 1. Modelo fora da tabela
+# devolve None -- melhor admitir que nao sabe do que estimar errado, que e
+# justamente a regra que o projeto aplica ao proprio agente.
+MODEL_PRICES: dict[str, tuple[float, float]] = {
+    "gpt-4o-mini": (0.15, 0.60),
+    "gpt-4o": (2.50, 10.00),
+    "gpt-4.1-mini": (0.40, 1.60),
+    "gpt-5-mini": (0.25, 2.00),
+    "openai/gpt-4o-mini": (0.15, 0.60),
+    "openai/gpt-4o": (2.50, 10.00),
+}
+
+
+def estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float | None:
+    """Custo estimado do turno em US$, ou None se o modelo nao esta tabelado."""
+    prices = MODEL_PRICES.get(model)
+    if prices is None:
+        # Modelos ':free' do OpenRouter nao consomem credito.
+        return 0.0 if model.endswith(":free") else None
+    entrada, saida = prices
+    return round(
+        (prompt_tokens or 0) / 1_000_000 * entrada
+        + (completion_tokens or 0) / 1_000_000 * saida,
+        6,
+    )
+
+
 def current_season(today: date | None = None) -> str:
     """
     Temporada NBA no formato usado pela API ("2025-26").

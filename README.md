@@ -10,14 +10,22 @@ conhecimento próprio — só ao que as tools retornam. Toda média, aproveitame
 score de similaridade é calculado em Python e entregue ao modelo como JSON; o
 papel dele é interpretar e escrever a análise.
 
-Isso é garantido em três camadas:
+Isso é garantido em quatro camadas:
 
 1. **System prompt** proíbe explicitamente estimar, arredondar de memória ou
    preencher lacunas.
 2. **Tools** devolvem erro estruturado em vez de exceção, para o modelo relatar a
    falha em vez de improvisar.
-3. **Interface** monta os cartões a partir dos mesmos resultados de tool, então o
+3. **Verificação determinística** confere cada número da resposta contra o
+   retorno das tools *depois* que o modelo escreve. O que não tem lastro volta
+   para ele corrigir; o que sobrar aparece como aviso na interface.
+4. **Interface** monta os cartões a partir dos mesmos resultados de tool, então o
    texto e os números na tela vêm da mesma fonte.
+
+A camada 3 existe porque as outras não bastam: prompt é instrução, não garantia.
+Em teste real o modelo inventou um salário para o LeBron que nenhuma tool
+fornece — ver [a auditoria](AgenteNBA_Auditoria_Melhorias.md) e
+[o relatório de testes](Relatorio_Testes_AgenteNBA_2026-09-21.md).
 
 ## Arquitetura
 
@@ -28,11 +36,43 @@ agent.py        Loop de tool use contra o OpenRouter (formato OpenAI)
 tools.py        As 5 tools + schemas no formato {"type":"function",...}
 similarity.py   Vetor de estilo e similaridade (numpy puro, sem LLM)
 nba_data.py     Acesso ao nba_api e ao CDN de imagens, com cache
-config.py       Credenciais, modelo e temporada, via .env
+config.py       Credenciais, modelo, temporada e tabela de preços, via .env
 certs.py        Compatibilidade TLS com antivírus/proxy que inspecionam HTTPS
+
+validation/     Guardrails determinísticos
+  facts.py        confere os números da resposta contra as tools
+  scope.py        recusa pergunta fora da NBA antes de gastar API
+  temporal.py     impede narrar dado velho como "ontem"
+  schemas.py      contrato de dados na entrada e na saída das tools
+
+tests/          Suíte offline (214 testes, sem rede e sem custo)
+eval/           Avaliação end-to-end com orçamento de API explícito
 ```
 
 Orquestração manual, sem LangChain ou similar.
+
+## Garantias verificáveis
+
+| Garantia | Como é imposta | Onde falha, se falhar |
+|---|---|---|
+| Número sem lastro não passa | `validation/facts.py` compara cada número da resposta com o JSON das tools | aviso visível na interface, após 1 tentativa de correção |
+| Métrica inexistente não é respondida | contrato de dados barra salário, contrato, prêmios, títulos, classificação e lesões | o agente declara que não tem o dado |
+| Pergunta fora da NBA não chega ao modelo | `validation/scope.py` roda antes da 1ª chamada | recusa local, custo zero |
+| Dado velho não vira "ontem" | `data_freshness` nas tools + `validation/temporal.py` | a resposta é obrigada a citar a data real |
+| Argumento de LLM não quebra a tool | `validation/schemas.py` valida tipo, faixa, enum e formato de temporada | erro estruturado que o modelo consegue corrigir |
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests/ -q
+```
+
+A suíte não chama a API do LLM nem a da NBA: tudo que sai para a rede é
+substituído por dado fixo. Roda em segundos, sem custo, a cada alteração.
+
+Para medir qualidade do agente de ponta a ponta (isso **custa dinheiro**), ver
+[eval/README.md](eval/README.md).
 
 ## Provider
 
